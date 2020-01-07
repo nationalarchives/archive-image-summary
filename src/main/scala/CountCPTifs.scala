@@ -6,13 +6,21 @@ import com.github.tototoshi.csv._
 
 object CountCPTifs extends App {
 
+  def checkForAndGetTxtFileArgument() = {
+    try {
+      args(0)
+    }
+    catch {
+      case _: ArrayIndexOutOfBoundsException => throw new ArrayIndexOutOfBoundsException("ERROR: You did not provide a .txt file as an argument!")
+    }
+  }
   def isATxtFile(file: String): Unit = {
-    require(file.takeRight(4) == ".txt", s"Expected a .txt file but received '$file'. Please fix and try again!")
+    require(file.takeRight(4) == ".txt", s"ERROR: Expected a .txt file but received '$file'. Please fix and try again!")
   }
 
   def getFileLines(txtFileName: String, txtFile:BufferedSource): Seq[String] = {
     val linesOfFile: Seq[String] = txtFile.getLines().toSeq //
-    require(linesOfFile != Seq(), s"The content of the file '$txtFileName' is empty. Please fix and try again!")
+    require(linesOfFile != Seq(), s"ERROR: The content of the file '$txtFileName' is empty. Please fix and try again!")
     linesOfFile
   }
 
@@ -58,13 +66,10 @@ object CountCPTifs extends App {
       writer.writeRow(List(dept, series, pieceNumber, "TIFF", numOfTifs))
     }
     writer.close()
-
+    println(s"\n\u001B[32m TASK COMPLETED!! A CSV named $csvFileName has been created for you!\u001B[0m\n")
   }
 
-  println(args(0))
-  println("test")
-
-  val txtFileName = args(0)
+  val txtFileName = checkForAndGetTxtFileArgument()
   isATxtFile(txtFileName)
 
   val txtFile: BufferedSource = Source.fromFile(txtFileName)
