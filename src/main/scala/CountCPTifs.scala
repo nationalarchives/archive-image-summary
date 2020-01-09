@@ -98,7 +98,7 @@ object CountCPTifs extends App {
 
   val tifTallyForAllFiles: Predef.Map[(String, String, String, String), Int] = tifTallyPerTxtFile.flatten.toMap
   val sortedTifTallyForAllFiles = immutable.ListMap(tifTallyForAllFiles.toSeq.sortBy(_._1):_*)
-  val csvFileName: String = "Chelsea_Partners_tif_File_Count"
+  val csvFileName: String = "CP_tif_File_Count"
   val completionMessage: String = generateFinalCsv(csvFileName, sortedTifTallyForAllFiles)
   println(completionMessage)
 }
