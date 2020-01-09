@@ -39,9 +39,15 @@ object CountCPTifs extends App {
     linesOfFile
   }
 
+  def removeParFromEndOfTifUnnecessary(fileLine: String) = {
+    val numOfChars = 4
+    if(fileLine.takeRight(numOfChars) == "\\par") fileLine.dropRight(numOfChars) else fileLine
+  }
+
   def findRelevantColumnsForCsv(txtFileName: String, fileLine: String): (String, String, String, String)  = {
+    val cleanedFileLine = if(fileLine.takeRight(4) == "\\par") fileLine.dropRight(4) else fileLine
     val relevantFileInfoPattern: Regex = "ENGLTNA1D\\_([a-zA-Z]+)(\\d+)\\-Box(\\d+).*$".r // find record details
-    val relevantFileInfoMatches: Iterator[Regex.Match] = relevantFileInfoPattern.findAllIn(fileLine).matchData
+    val relevantFileInfoMatches: Iterator[Regex.Match] = relevantFileInfoPattern.findAllIn(cleanedFileLine).matchData
     val seqOfGroupsOfRecordDetails: Seq[(String, String, String, String)] = relevantFileInfoMatches.map {
       recordDetails => (txtFileName,
                         recordDetails.group(1), // department
@@ -81,9 +87,9 @@ object CountCPTifs extends App {
 //    }
     
     writer.close()
-    s"\n\u001B[32mTASK COMPLETED!! A CSV named '$csvFileName.csv' has been created for you!\u001B[0m\n"
+    s"\nTASK COMPLETED!! A CSV named '$csvFileName.csv' has been created for you in ${System.getProperty("user.dir")}!"
   }
-  println(s"\n\u001B[32mStarting task, please wait...\u001B[0m\n")
+  println(s"Starting task, please wait...")
   val argument: String = checkForAFileArgument() // check to see if argument was provided
   val directory: File = checkIfArgumentIsADirectory(argument)
   val seqOfTxtFiles: Seq[File] = getTxtFilesInDirectory(directory)
