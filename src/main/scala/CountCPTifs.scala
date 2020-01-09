@@ -3,82 +3,102 @@ import scala.io.BufferedSource
 import scala.util.matching.Regex
 import scala.collection._
 import com.github.tototoshi.csv._
+import java.io.File
+
 
 object CountCPTifs extends App {
 
-  def checkForAndGetTxtFileArgument() = {
+  def checkForAFileArgument(): String = {
     try {
       args(0)
     }
     catch {
-      case _: ArrayIndexOutOfBoundsException => throw new ArrayIndexOutOfBoundsException("ERROR: You did not provide a .txt file as an argument!")
+      case _: ArrayIndexOutOfBoundsException => throw new ArrayIndexOutOfBoundsException("ERROR: You did not provide an argument!")
     }
   }
-  def isATxtFile(file: String): Unit = {
-    require(file.takeRight(4) == ".txt", s"ERROR: Expected a .txt file but received '$file'. Please fix and try again!")
+
+  def checkIfArgumentIsADirectory(commandlineArg: String): File = {
+    val argument: File = new File(commandlineArg)
+    require(argument.isDirectory, "ERROR: The argument provided was not a directory!")
+    argument
   }
 
-  def getFileLines(txtFileName: String, txtFile:BufferedSource): Seq[String] = {
-    val linesOfFile: Seq[String] = txtFile.getLines().toSeq //
-    require(linesOfFile != Seq(), s"ERROR: The content of the file '$txtFileName' is empty. Please fix and try again!")
+  def getTxtFilesInDirectory(directory: File): Seq[File] = {
+    val seqOfTxtFiles: Seq[File] = directory.listFiles.filter {
+      item => item.isFile && item.toString.takeRight(4) == ".txt"
+    }.toSeq
+    require(seqOfTxtFiles != Seq(), "ERROR: The folder provided does not contain any .txt files in it!")
+    seqOfTxtFiles
+  }
+
+  def getFileLines(txtFile: File): Seq[String] = {
+    val bufferedTxtFile: BufferedSource = Source.fromFile(txtFile)
+    val linesOfFile: Seq[String] = bufferedTxtFile.getLines().toSeq //
+    require(linesOfFile != Seq(), s"ERROR: The content of the file '$txtFile' is empty. Please fix and try again!")
+    bufferedTxtFile.close()
     linesOfFile
   }
 
-  def findRelevantColumnsForCsv(fileLine: String):(String, String, String)  = {
+  def findRelevantColumnsForCsv(txtFileName: String, fileLine: String): (String, String, String, String)  = {
     val relevantFileInfoPattern: Regex = "ENGLTNA1D\\_([a-zA-Z]+)(\\d+)\\-Box(\\d+).*$".r // find record details
     val relevantFileInfoMatches: Iterator[Regex.Match] = relevantFileInfoPattern.findAllIn(fileLine).matchData
-    val seqOfGroupsOfRecordDetails: Seq[(String, String, String)] = relevantFileInfoMatches.map {
-      recordDetails => (recordDetails.group(1), // department
+    val seqOfGroupsOfRecordDetails: Seq[(String, String, String, String)] = relevantFileInfoMatches.map {
+      recordDetails => (txtFileName,
+                        recordDetails.group(1), // department
                         recordDetails.group(2), // series
                         recordDetails.group(3)) // piece
     }.toSeq
     seqOfGroupsOfRecordDetails.head // take tuple out of the Seq
   }
 
-  def findRelevantTifs(fileLines: Seq[String]): Seq[(String, String, String)] = {
+  def findLinesEndingWithTif(txtFileName: String, fileLines: Seq[String]): Seq[(String, String, String, String)] = {
     fileLines.collect{
-      case fileLine if(fileLine.takeRight(4) == ".tif") => findRelevantColumnsForCsv(fileLine) // get details of only tifs
+      case fileLine if(fileLine.takeRight(4) == ".tif") => findRelevantColumnsForCsv(txtFileName, fileLine) // get details of only tifs
     }
   }
 
-  def generateTally(infoPerTifFile: Seq[(String, String, String)]): Map[(String, String, String), Int] = {
-//    val tifTally: mutable.Map[(String, String, String), Int] = mutable.Map()
+  def generateTifTally(infoPerTifFile: Seq[(String, String, String, String)]): Map[(String, String, String, String), Int] = {
+
     val tifTally = infoPerTifFile.groupBy(recordDetail => recordDetail).view.mapValues { // group duplicate details
       recordList => recordList.size // count number of record details duplicates
     }.toMap
 
-//    infoPerTifFile.foreach { tifInfo =>
-//      try {
-//        tifTally(tifInfo) += 1
-//      }
-//      catch {
-//        case _: NoSuchElementException => tifTally += tifInfo -> 1
-//      }
-//    }
     tifTally
   }
 
-  def generateFinalCsv(csvFileName: String, tifTally: Map[(String, String, String), Int]) = {
-    val writer = CSVWriter.open(csvFileName)
-    writer.writeRow(List("Dept", "Series", "RefPiece", "ImageFormat", "NumberOfImages"))
+  def generateFinalCsv(csvFileName: String, tifTally: Map[(String, String, String, String), Int]): String = {
+    val writer = CSVWriter.open(s"$csvFileName.csv")
+    writer.writeRow(List("File Name", "Dept", "Series", "RefPiece", "ImageFormat", "NumberOfImages"))
 
-    for(((dept, series, pieceNumber), numOfTifs) <- tifTally){
-      writer.writeRow(List(dept, series, pieceNumber, "TIFF", numOfTifs))
+    for(((fileName, dept, series, pieceNumber), numOfTifs) <- tifTally) {
+      writer.writeRow(List(fileName, dept, series, pieceNumber, "TIFF", numOfTifs))
     }
+
+//    tifTally.foreach {
+//      case ((fileName, dept, series, pieceNumber), numOfTifs) => writer.writeRow(
+//          List(fileName, dept, series, pieceNumber, "TIFF", numOfTifs)
+//      )
+//    }
+    
     writer.close()
-    println(s"\n\u001B[32m TASK COMPLETED!! A CSV named $csvFileName has been created for you!\u001B[0m\n")
+    s"\n\u001B[32mTASK COMPLETED!! A CSV named '$csvFileName' has been created for you!\u001B[0m\n"
+  }
+  println(s"\n\u001B...Starting\u001B[0m\n")
+  val argument: String = checkForAFileArgument() // check to see if argument was provided
+  val directory: File = checkIfArgumentIsADirectory(argument)
+  val seqOfTxtFiles: Seq[File] = getTxtFilesInDirectory(directory)
+
+  val tifTallyPerTxtFile: Seq[Map[(String, String, String, String), Int]] = seqOfTxtFiles.map{ txtFilePath =>
+    val fileLines: Seq[String] = getFileLines(txtFilePath)
+    val txtFile = txtFilePath.getName
+    val recordDetailsPerTifFile: Seq[(String, String, String, String)] = findLinesEndingWithTif(txtFile, fileLines)
+    val tifTally: Map[(String, String, String, String), Int] = generateTifTally(recordDetailsPerTifFile)
+    tifTally
   }
 
-  val txtFileName = checkForAndGetTxtFileArgument()
-  isATxtFile(txtFileName)
-
-  val txtFile: BufferedSource = Source.fromFile(txtFileName)
-  val fileLines: Seq[String] = getFileLines(txtFileName, txtFile)
-  val recordDetailsPerTifFile: Seq[(String, String, String)] = findRelevantTifs(fileLines)
-
-  val tifTally: Map[(String, String, String), Int] = generateTally(recordDetailsPerTifFile)
-
-  val csvFileName: String = txtFileName.replace(".txt",".csv")
-  generateFinalCsv(csvFileName, tifTally)
-
+  val tifTallyForAllFiles: Predef.Map[(String, String, String, String), Int] = tifTallyPerTxtFile.flatten.toMap
+  val sortedTifTallyForAllFiles = immutable.ListMap(tifTallyForAllFiles.toSeq.sortBy(_._1):_*)
+  val csvFileName: String = "Chelsea_Partners_tif_File_Count"
+  val completionMessage: String = generateFinalCsv(csvFileName, sortedTifTallyForAllFiles)
+  println(completionMessage)
 }
