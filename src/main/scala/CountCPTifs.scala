@@ -81,9 +81,9 @@ object CountCPTifs extends App {
 //    }
     
     writer.close()
-    s"\n\u001B[32mTASK COMPLETED!! A CSV named '$csvFileName' has been created for you!\u001B[0m\n"
+    s"\n\u001B[32mTASK COMPLETED!! A CSV named '$csvFileName.csv' has been created for you!\u001B[0m\n"
   }
-  println(s"\n\u001B...Starting\u001B[0m\n")
+  println(s"\n\u001B[32mStarting task, please wait...\u001B[0m\n")
   val argument: String = checkForAFileArgument() // check to see if argument was provided
   val directory: File = checkIfArgumentIsADirectory(argument)
   val seqOfTxtFiles: Seq[File] = getTxtFilesInDirectory(directory)
