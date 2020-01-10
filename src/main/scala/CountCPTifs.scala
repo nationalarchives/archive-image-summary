@@ -39,15 +39,9 @@ object CountCPTifs extends App {
     linesOfFile
   }
 
-  def removeParFromEndOfTifUnnecessary(fileLine: String) = {
-    val numOfChars = 4
-    if(fileLine.takeRight(numOfChars) == "\\par") fileLine.dropRight(numOfChars) else fileLine
-  }
-
-  def findRelevantColumnsForCsv(txtFileName: String, fileLine: String): (String, String, String, String)  = {
-    val cleanedFileLine = if(fileLine.takeRight(4) == "\\par") fileLine.dropRight(4) else fileLine
+  def findRelevantTextForEachColumn(txtFileName: String, fileLine: String): (String, String, String, String)  = {
     val relevantFileInfoPattern: Regex = "ENGLTNA1D\\_([a-zA-Z]+)(\\d+)\\-Box(\\d+).*$".r // find record details
-    val relevantFileInfoMatches: Iterator[Regex.Match] = relevantFileInfoPattern.findAllIn(cleanedFileLine).matchData
+    val relevantFileInfoMatches: Iterator[Regex.Match] = relevantFileInfoPattern.findAllIn(fileLine).matchData
     val seqOfGroupsOfRecordDetails: Seq[(String, String, String, String)] = relevantFileInfoMatches.map {
       recordDetails => (txtFileName,
                         recordDetails.group(1), // department
@@ -58,13 +52,21 @@ object CountCPTifs extends App {
   }
 
   def findLinesEndingWithTif(txtFileName: String, fileLines: Seq[String]): Seq[(String, String, String, String)] = {
-    fileLines.collect{
-      case fileLine if(fileLine.takeRight(4) == ".tif") => findRelevantColumnsForCsv(txtFileName, fileLine) // get details of only tifs
+    val cleanedFileLines = fileLines.map{ // check in case '\par' has been added to the end of the lines
+      fileLine => if(fileLine.takeRight(4) == "\\par") fileLine.dropRight(4) else fileLine
     }
+    val tifLines = cleanedFileLines.collect{// get details for only tifs
+      case fileLine if(fileLine.takeRight(4) == ".tif") => findRelevantTextForEachColumn(txtFileName, fileLine)
+    }
+    val percentageOfTifLines = (tifLines.size.toFloat / fileLines.size.toFloat) * 100
+
+    if(percentageOfTifLines < 99.00) { // check in case no tif lines were found
+      println(s"WARNING: The % of lines ending in .tif in '${txtFileName}' is ${percentageOfTifLines.toInt}% which is lower than the expected 99%")
+    }
+    tifLines
   }
 
   def generateTifTally(infoPerTifFile: Seq[(String, String, String, String)]): Map[(String, String, String, String), Int] = {
-
     val tifTally = infoPerTifFile.groupBy(recordDetail => recordDetail).view.mapValues { // group duplicate details
       recordList => recordList.size // count number of record details duplicates
     }.toMap
