@@ -91,12 +91,12 @@ object CountCPTifs extends App {
     writer.close()
     s"\nTASK COMPLETED!! A CSV named '$csvFileName.csv' has been created for you in ${System.getProperty("user.dir")}!"
   }
-  println(s"Starting task, please wait...")
+  println(s"\nStarting task, please wait...")
   val argument: String = checkForAFileArgument() // check to see if argument was provided
   val directory: File = checkIfArgumentIsADirectory(argument)
-  val seqOfTxtFiles: Seq[File] = getTxtFilesInDirectory(directory)
+  val seqOfTxtFilePaths: Seq[File] = getTxtFilesInDirectory(directory)
 
-  val tifTallyPerTxtFile: Seq[Map[(String, String, String, String), Int]] = seqOfTxtFiles.map{ txtFilePath =>
+  val tifTallyPerTxtFile: Seq[Map[(String, String, String, String), Int]] = seqOfTxtFilePaths.map{ txtFilePath =>
     val fileLines: Seq[String] = getFileLines(txtFilePath)
     val txtFile = txtFilePath.getName
     val recordDetailsPerTifFile: Seq[(String, String, String, String)] = findLinesEndingWithTif(txtFile, fileLines)
@@ -110,3 +110,13 @@ object CountCPTifs extends App {
   val completionMessage: String = generateFinalCsv(csvFileName, sortedTifTallyForAllFiles)
   println(completionMessage)
 }
+
+//CODE to show Suzanne
+
+//val tifTallyPerTxtFile: Seq[Map[(String, String, String, String), Int]] = for {
+//  txtFilePath <- seqOfTxtFilePaths
+//  fileLines: Seq[String] = getFileLines(txtFilePath)
+//  val txtFile = txtFilePath.getName
+//  recordDetailsPerTifFile: Seq[(String, String, String, String)] = findLinesEndingWithTif(txtFile, fileLines)
+//  tifTally: Map[(String, String, String, String), Int] = generateTifTally(recordDetailsPerTifFile)
+//} yield tifTally
